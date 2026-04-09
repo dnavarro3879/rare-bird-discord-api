@@ -9,6 +9,7 @@ class Config:
     anthropic_api_key: str
     agent_id: str
     environment_id: str
+    claude_model: str = ""
 
 
 class MissingEnvError(RuntimeError):
@@ -28,4 +29,5 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         anthropic_api_key=env["ANTHROPIC_API_KEY"],
         agent_id=env["AGENT_ID"],
         environment_id=env["ENVIRONMENT_ID"],
+        claude_model=env.get("CLAUDE_MODEL", ""),
     )
