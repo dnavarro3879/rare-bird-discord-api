@@ -1,5 +1,7 @@
 from typing import Any
 
+import discord
+
 from apps.locate.views import RegionButtonsView
 from apps.search.services import SearchError, SearchTimeout
 
@@ -217,6 +219,24 @@ def test_long_display_name_is_truncated_to_80_chars():
     )
     button = view.children[0]
     assert len(button.label) <= 80  # type: ignore[attr-defined]
+
+
+def test_buttons_do_not_shadow_discord_internal_parent_attr():
+    """Regression: discord.py's `Item._parent` is typed `Optional[Item]` and is
+    walked by `Item._run_checks` to validate clicks. Storing a View there
+    breaks dispatch with `AttributeError: '...View' object has no attribute
+    '_run_checks'` and the user sees "This interaction failed".
+    """
+    view = RegionButtonsView(
+        results=_three_results(),  # type: ignore[arg-type]
+        make_search_service=lambda: StubSearchService(),  # type: ignore[return-value]
+        logger=NoopLogger(),
+    )
+    for child in view.children:
+        assert child._parent is None or isinstance(child._parent, discord.ui.Item), (
+            f"button._parent shadowed by {type(child._parent).__name__}; "
+            "this breaks discord.py's _run_checks chain"
+        )
 
 
 async def test_each_click_constructs_fresh_search_service():
