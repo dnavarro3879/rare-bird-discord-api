@@ -7,6 +7,7 @@ import anthropic
 
 from apps.locate.schemas import RegionResult
 from core.config import Config
+from core.json_extract import JsonExtractError, extract_json
 
 _DEFAULT_MODEL = "claude-sonnet-4-5"
 _WEB_SEARCH_MAX_USES = 3
@@ -78,9 +79,6 @@ _SYSTEM_PROMPT = (
 
 _REGION_CODE_RE = re.compile(r"^[A-Z]{2}(-[A-Z0-9]+){0,2}$")
 
-_FENCED_JSON_RE = re.compile(r"```json\s*(.*?)\s*```", re.DOTALL)
-_BALANCED_JSON_RE = re.compile(r"(\[.*\]|\{.*\})", re.DOTALL)
-
 
 class LocateError(RuntimeError): ...
 
@@ -144,16 +142,9 @@ class LocateService:
         text = "".join(text_parts)
         if not text:
             raise LocateError("no text block in response")
-
-        fenced = _FENCED_JSON_RE.search(text)
-        candidate = fenced.group(1) if fenced else None
-        if candidate is None:
-            fallback = _BALANCED_JSON_RE.search(text)
-            candidate = fallback.group(1) if fallback else None
-        if candidate is None:
-            raise LocateError("could not parse JSON from response")
-
         try:
-            return json.loads(candidate)
+            return extract_json(text)
+        except JsonExtractError as exc:
+            raise LocateError("could not parse JSON from response") from exc
         except json.JSONDecodeError as exc:
             raise LocateError("could not parse JSON from response") from exc

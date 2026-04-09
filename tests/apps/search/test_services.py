@@ -93,7 +93,9 @@ def _config() -> Config:
     )
 
 
-def _agent_message(payload) -> FakeEvent:
+def _agent_message(payload, *, raw_text: str | None = None) -> FakeEvent:
+    if raw_text is not None:
+        return FakeEvent("agent.message", text=raw_text)
     return FakeEvent("agent.message", text=json.dumps(payload))
 
 
@@ -215,3 +217,30 @@ def test_search_returns_empty_list_when_agent_returns_empty():
     svc, _, _ = _service([[_agent_message([])]])
     result = svc.search("US-CA")
     assert result == []
+
+
+def test_search_returns_species_list_when_agent_response_is_fenced_json():
+    species = [
+        {"commonName": "Golden-crowned Kinglet", "scientificName": "Regulus satrapa"}
+    ]
+    fenced = f"```json\n{json.dumps(species)}\n```"
+    svc, _, _ = _service([[_agent_message(None, raw_text=fenced)]])
+    result = svc.search("US-GA-121")
+    assert result == species
+
+
+def test_search_raises_search_error_on_unparseable_agent_response():
+    svc, _, _ = _service(
+        [[_agent_message(None, raw_text="this is just prose, no JSON")]]
+    )
+    with pytest.raises(SearchError) as excinfo:
+        svc.search("US-CA")
+    assert "could not parse" in str(excinfo.value).lower()
+
+
+def test_search_raises_search_error_when_fenced_payload_has_error_key():
+    fenced = '```json\n{"error": "quota exceeded"}\n```'
+    svc, _, _ = _service([[_agent_message(None, raw_text=fenced)]])
+    with pytest.raises(SearchError) as excinfo:
+        svc.search("US-CA")
+    assert "quota exceeded" in str(excinfo.value)

@@ -7,6 +7,7 @@ import anthropic
 
 from apps.search.schemas import Species
 from core.config import Config
+from core.json_extract import JsonExtractError, extract_json
 
 _BETA = ["managed-agents-2026-04-01"]
 
@@ -49,7 +50,18 @@ class SearchService:
             events = self.client.beta.sessions.events.list(session.id, betas=_BETA)
             for event in events.data:
                 if event.type == "agent.message":
-                    payload = json.loads(event.content[0].text)
+                    text = event.content[0].text
+                    try:
+                        payload = extract_json(text)
+                    except (JsonExtractError, json.JSONDecodeError) as exc:
+                        raise SearchError(
+                            f"could not parse agent response: {exc}"
+                        ) from exc
+                    self.logger.info(
+                        "agent response parsed",
+                        session_id=session.id,
+                        region=region,
+                    )
                     if isinstance(payload, dict) and "error" in payload:
                         raise SearchError(payload["error"])
                     return payload
