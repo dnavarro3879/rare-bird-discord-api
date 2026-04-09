@@ -13,6 +13,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ruff>=0.15.9",
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "pytest-asyncio>=0.24",
 ]
 
 [tool.ruff]
@@ -21,3 +24,23 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--cov=apps --cov=core --cov-report=term-missing --cov-fail-under=85"
+
+[tool.coverage.run]
+branch = true
+source = ["apps", "core"]
+omit = ["tests/*", "main.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
