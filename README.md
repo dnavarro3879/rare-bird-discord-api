@@ -71,6 +71,32 @@ The bot will reply with `Searching for rare birds in **US-CA**...` and then post
 
 Region codes follow the eBird convention: country (`US`), state/subnational1 (`US-CA`), or county/subnational2 (`US-CA-001`).
 
+## Commands
+
+### `!search <region>`
+
+Look up rare bird sightings in a known eBird region code. Example:
+
+```
+!search US-TX-453
+```
+
+Returns one embed per species as described above.
+
+### `!locate <city>`
+
+Resolve a free-form city name into up to three eBird region codes (the region containing the city plus up to two nearby regions), then click a numbered button to run `!search` against the region you want. Example:
+
+```
+!locate Austin
+```
+
+The bot replies with a single embed listing up to three candidates, each exposed as a numbered button. Clicking a button runs the same search flow that `!search` uses and posts the species embeds back in the same channel.
+
+`!locate` is implemented via `client.messages.create` with Anthropic's server-side `web_search` tool (capped at 3 web searches per request) because county-level FIPS codes are not reliably recallable from parametric knowledge and must be verified online. This makes `!locate` more expensive per call than `!search`; use it for discovery and `!search` directly when you already know the region code.
+
+The default model is `claude-sonnet-4-5`. To override, set the optional `CLAUDE_MODEL` environment variable in your `.env` file — this is the only new env var for `!locate` and it is not required.
+
 ## Testing
 
 The test suite uses `pytest` + `pytest-cov` + `pytest-asyncio`. Coverage is enforced at **≥85%** on `apps/` and `core/` (the composition root in `main.py` is excluded).

@@ -8,6 +8,7 @@ import discord
 
 from apps.search.handlers import handle_search
 from apps.search.services import SearchService
+from core import dispatch
 from core.config import Config
 
 
@@ -28,10 +29,7 @@ def register(bot: discord.Client, deps: AppDeps) -> None:
             logger=deps.logger,
         )
 
-    @bot.event
-    async def on_message(message: discord.Message) -> None:
-        if message.author == bot.user:
-            return
-        if not message.content.startswith("!search"):
-            return
+    async def on_search(message: discord.Message) -> None:
         await handle_search(message, make_service, deps.logger)
+
+    dispatch.register_command(bot, "!search", on_search)

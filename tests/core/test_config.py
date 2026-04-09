@@ -50,3 +50,14 @@ def test_load_config_defaults_to_os_environ(monkeypatch):
     config = load_config()
     assert isinstance(config, Config)
     assert config.discord_token == "tok"
+
+
+def test_load_config_defaults_claude_model_to_empty_string():
+    config = load_config(_FULL_ENV)
+    assert config.claude_model == ""
+
+
+def test_load_config_reads_claude_model_when_set():
+    env = {**_FULL_ENV, "CLAUDE_MODEL": "claude-sonnet-4-5"}
+    config = load_config(env)
+    assert config.claude_model == "claude-sonnet-4-5"
