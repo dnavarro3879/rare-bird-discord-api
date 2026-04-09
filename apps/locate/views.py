@@ -21,19 +21,29 @@ class RegionButtonsView(discord.ui.View):
         timeout: float = 600.0,
     ) -> None:
         super().__init__(timeout=timeout)
-        self._make_search_service = make_search_service
-        self._logger = logger
         for i, r in enumerate(results, start=1):
-            self.add_item(_RegionButton(index=i, result=r, parent=self))
+            self.add_item(
+                _RegionButton(
+                    index=i,
+                    result=r,
+                    make_search_service=make_search_service,
+                    logger=logger,
+                )
+            )
 
 
 class _RegionButton(discord.ui.Button):
+    # NOTE: do NOT store anything as `self._parent` — discord.py uses that
+    # attribute internally to track the parent layout Item (e.g. ActionRow)
+    # and walks it via `_run_checks`. Shadowing it with a View breaks click
+    # dispatch ("This interaction failed").
     def __init__(
         self,
         *,
         index: int,
         result: RegionResult,
-        parent: RegionButtonsView,
+        make_search_service: Callable[[], SearchService],
+        logger: Any,
     ) -> None:
         region_code = result.get("regionCode", "")
         display_name = result.get("displayName") or region_code
@@ -44,12 +54,13 @@ class _RegionButton(discord.ui.Button):
             custom_id=custom_id,
             style=discord.ButtonStyle.primary,
         )
-        self._parent = parent
         self._region_code = region_code
+        self._make_search_service = make_search_service
+        self._logger = logger
 
     async def callback(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True)
-        service = self._parent._make_search_service()
+        service = self._make_search_service()
         loop = asyncio.get_running_loop()
         try:
             data = await loop.run_in_executor(None, service.search, self._region_code)
@@ -60,7 +71,7 @@ class _RegionButton(discord.ui.Button):
             await interaction.followup.send("Agent timed out. Try again shortly.")
             return
         except Exception:
-            self._parent._logger.exception(
+            self._logger.exception(
                 "locate-button search failed for region={}", self._region_code
             )
             await interaction.followup.send("Something went wrong querying the agent.")
