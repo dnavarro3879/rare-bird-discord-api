@@ -9,6 +9,7 @@ import discord
 from apps.locate.handlers import handle_locate
 from apps.locate.services import LocateService
 from apps.search.services import SearchService
+from apps.targets.services import TargetsService
 from core import dispatch
 from core.config import Config
 
@@ -19,6 +20,7 @@ class LocateDeps:
     anthropic_client: anthropic.Anthropic
     logger: Any
     make_search_service: Callable[[], SearchService]
+    make_targets_service: Callable[[], TargetsService]
     sleeper: Callable[[float], None] = field(default=time.sleep)
 
 
@@ -35,6 +37,7 @@ def register(bot: discord.Client, deps: LocateDeps) -> None:
             message,
             make_service,
             deps.make_search_service,
+            deps.make_targets_service,
             deps.logger,
         )
 

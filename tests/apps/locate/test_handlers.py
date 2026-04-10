@@ -66,8 +66,17 @@ class StubSearchService:
         return []
 
 
+class StubTargetsService:
+    def targets(self, region: str):
+        return []
+
+
 def _make_search_service_factory():
     return lambda: StubSearchService()
+
+
+def _make_targets_service_factory():
+    return lambda: StubTargetsService()
 
 
 async def test_handler_rejects_empty_city():
@@ -80,7 +89,13 @@ async def test_handler_rejects_empty_city():
         called["count"] += 1
         return StubLocateService(result=[])
 
-    await handle_locate(message, factory, _make_search_service_factory(), logger)  # type: ignore[arg-type]
+    await handle_locate(
+        message,
+        factory,
+        _make_search_service_factory(),
+        _make_targets_service_factory(),
+        logger,
+    )  # type: ignore[arg-type]
 
     assert len(message.channel.sent) == 1
     assert "Please provide a city" in message.channel.sent[0]["content"]
@@ -97,7 +112,13 @@ async def test_handler_rejects_whitespace_only_city():
         called["count"] += 1
         return StubLocateService(result=[])
 
-    await handle_locate(message, factory, _make_search_service_factory(), logger)  # type: ignore[arg-type]
+    await handle_locate(
+        message,
+        factory,
+        _make_search_service_factory(),
+        _make_targets_service_factory(),
+        logger,
+    )  # type: ignore[arg-type]
 
     assert len(message.channel.sent) == 1
     assert "Please provide a city" in message.channel.sent[0]["content"]
@@ -115,6 +136,7 @@ async def test_handler_passes_multi_word_city_intact_to_service():
         message,
         lambda: service,  # type: ignore[arg-type,return-value]
         _make_search_service_factory(),
+        _make_targets_service_factory(),
         logger,
     )
 
@@ -137,6 +159,7 @@ async def test_handler_success_sends_looking_up_then_embed_with_view():
         message,
         lambda: service,  # type: ignore[arg-type,return-value]
         _make_search_service_factory(),
+        _make_targets_service_factory(),
         logger,
     )
 
@@ -158,6 +181,7 @@ async def test_handler_reports_locate_error_as_friendly_message():
         message,
         lambda: service,  # type: ignore[arg-type,return-value]
         _make_search_service_factory(),
+        _make_targets_service_factory(),
         logger,
     )
 
@@ -177,6 +201,7 @@ async def test_handler_reports_locate_timeout_as_friendly_message():
         message,
         lambda: service,  # type: ignore[arg-type,return-value]
         _make_search_service_factory(),
+        _make_targets_service_factory(),
         logger,
     )
 
@@ -195,6 +220,7 @@ async def test_handler_catches_generic_exception_and_logs():
         message,
         lambda: service,  # type: ignore[arg-type,return-value]
         _make_search_service_factory(),
+        _make_targets_service_factory(),
         logger,
     )
 
@@ -213,6 +239,7 @@ async def test_handler_empty_results_sends_no_regions_found_message():
         message,
         lambda: service,  # type: ignore[arg-type,return-value]
         _make_search_service_factory(),
+        _make_targets_service_factory(),
         logger,
     )
 
@@ -232,6 +259,47 @@ async def test_handler_constructs_fresh_locate_service_per_call():
     message = FakeMessage("!locate Austin")
     logger = NoopLogger()
 
-    await handle_locate(message, factory, _make_search_service_factory(), logger)  # type: ignore[arg-type]
+    await handle_locate(
+        message,
+        factory,
+        _make_search_service_factory(),
+        _make_targets_service_factory(),
+        logger,
+    )  # type: ignore[arg-type]
 
     assert calls["count"] == 1
+
+
+async def test_handler_constructs_view_with_make_targets_service():
+    results = [
+        {
+            "regionCode": "US-TX-453",
+            "displayName": "Travis County",
+            "description": "Austin",
+        },
+    ]
+    service = StubLocateService(result=results)
+    message = FakeMessage("!locate Austin")
+    logger = NoopLogger()
+
+    targets_factory_calls = {"count": 0}
+
+    def make_targets_service():
+        targets_factory_calls["count"] += 1
+        return StubTargetsService()
+
+    await handle_locate(
+        message,
+        lambda: service,  # type: ignore[arg-type,return-value]
+        _make_search_service_factory(),
+        make_targets_service,  # type: ignore[arg-type]
+        logger,
+    )
+
+    sent = message.channel.sent
+    assert sent[1]["view"] is not None
+    view = sent[1]["view"]
+    # The view holds the make_targets_service factory via its buttons; each
+    # button gets a reference to _make_targets_service.
+    for child in view.children:
+        assert child._make_targets_service is make_targets_service  # type: ignore[attr-defined]

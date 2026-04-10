@@ -7,7 +7,10 @@ def build_locate_embed(city: str, results: list[RegionResult]) -> discord.Embed:
     """Build a Discord embed listing eBird region codes that match a city."""
     embed = discord.Embed(
         title=f"Regions matching '{city}'",
-        description="Click a button below to search that region for rare birds.",
+        description=(
+            "Click a button below — Rares: recent notable sightings · "
+            "Targets: life-list gaps (county only)."
+        ),
         color=discord.Color.blurple(),
     )
 

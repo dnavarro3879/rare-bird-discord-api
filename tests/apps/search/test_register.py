@@ -73,7 +73,7 @@ async def test_on_message_ignores_own_messages():
     bot = FakeBot()
     register(bot, _deps())  # type: ignore[arg-type]
     on_message = bot.registered["on_message"]
-    msg = FakeMessage("!search US-CA", author="bot-user")
+    msg = FakeMessage("!rares US-CA", author="bot-user")
     await on_message(msg)
     assert msg.channel.sent == []
 
@@ -91,7 +91,7 @@ async def test_on_message_delegates_empty_search_to_handler():
     bot = FakeBot()
     register(bot, _deps())  # type: ignore[arg-type]
     on_message = bot.registered["on_message"]
-    msg = FakeMessage("!search", author="someone-else")
+    msg = FakeMessage("!rares", author="someone-else")
     await on_message(msg)
     assert len(msg.channel.sent) == 1
     assert "region code" in msg.channel.sent[0]["content"]

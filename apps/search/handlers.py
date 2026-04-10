@@ -13,9 +13,9 @@ async def handle_search(
     make_service: Callable[[], SearchService],
     logger: Any,
 ) -> None:
-    region = message.content.removeprefix("!search").strip()
+    region = message.content.removeprefix("!rares").strip()
     if not region:
-        await message.channel.send("Please provide a region code: `!search US-CA`")
+        await message.channel.send("Please provide a region code: `!rares US-CA`")
         return
 
     await message.channel.send(f"Searching for rare birds in **{region}**...")

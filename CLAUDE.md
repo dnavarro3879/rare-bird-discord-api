@@ -34,7 +34,7 @@ Environment access must go through a single config module (e.g. `core/config.py`
 
 The project is a long-lived Discord bot worker (see `Procfile` — deployed as a `worker` dyno, not a web service; an earlier Flask version was replaced in commit `2151b48`). The bot itself does **not** call eBird or any bird API directly — all data fetching, parsing, and shaping lives inside an Anthropic **Managed Agent**, accessed via `client.beta.sessions` with the beta header `managed-agents-2026-04-01`. That header must be passed on every call to the beta API.
 
-The end-to-end flow for `!search <region>` is: Discord message → handler → search service → managed-agent session (create → send `user.message` → poll `events.list` until an `agent.message` arrives) → JSON parse → embed builder → Discord reply. The agent returns either a JSON **list** of species dicts (success) or a JSON **dict** with an `error` key (failure); both branches must be handled at the service layer, not in the Discord handler.
+The end-to-end flow for `!rares <region>` is: Discord message → handler → search service → managed-agent session (create → send `user.message` → poll `events.list` until an `agent.message` arrives) → JSON parse → embed builder → Discord reply. The agent returns either a JSON **list** of species dicts (success) or a JSON **dict** with an `error` key (failure); both branches must be handled at the service layer, not in the Discord handler.
 
 Expected species shape (this is the contract with the agent — changes must be coordinated with the agent's prompt/tools, not just the embed builder): `commonName`, `scientificName`, `allAboutBirdsUrl`, and a `sightings` list whose items have `locationName`, `dateTime`, `checklistUrl`, `googleMapsUrl`.
 

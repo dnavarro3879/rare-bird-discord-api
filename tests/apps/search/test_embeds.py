@@ -1,6 +1,6 @@
 import discord
 
-from apps.search.embeds import MAX_SIGHTINGS, build_species_embed
+from apps.search.embeds import build_species_embed
 
 
 def _sighting(i: int) -> dict:
@@ -39,7 +39,7 @@ def test_build_embed_caps_sightings_at_five_and_sets_footer():
     sightings = [_sighting(i) for i in range(1, 8)]  # 7 sightings
     species = {"commonName": "Robin", "sightings": sightings}
     embed = build_species_embed(species)
-    assert len(embed.fields) == MAX_SIGHTINGS
+    assert len(embed.fields) == 5
     assert embed.footer.text == "+2 more sighting(s)"
 
 
@@ -117,3 +117,11 @@ def test_build_embed_defaults_unknown_species_and_unknown_location():
     embed = build_species_embed(species)
     assert embed.title == "Unknown Species"
     assert embed.fields[0].name == "Unknown location"
+
+
+def test_build_embed_honors_max_sightings_override():
+    sightings = [_sighting(i) for i in range(1, 11)]  # exactly 10
+    species = {"commonName": "Robin", "sightings": sightings}
+    embed = build_species_embed(species, max_sightings=10)
+    assert len(embed.fields) == 10
+    assert embed.footer.text is None

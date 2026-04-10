@@ -56,7 +56,7 @@ def _make_service_factory(service):
 
 
 async def test_handler_rejects_empty_region():
-    message = FakeMessage("!search")
+    message = FakeMessage("!rares")
     logger = NoopLogger()
 
     called = {"count": 0}
@@ -78,7 +78,7 @@ async def test_handler_sends_searching_message_then_embeds_on_success():
         {"commonName": "Kestrel", "sightings": []},
     ]
     service = StubService(result=species)
-    message = FakeMessage("!search US-CA")
+    message = FakeMessage("!rares US-CA")
     logger = NoopLogger()
 
     await handle_search(message, _make_service_factory(service), logger)
@@ -94,7 +94,7 @@ async def test_handler_sends_searching_message_then_embeds_on_success():
 
 async def test_handler_sends_no_results_message_on_empty_list():
     service = StubService(result=[])
-    message = FakeMessage("!search US-CA")
+    message = FakeMessage("!rares US-CA")
     logger = NoopLogger()
 
     await handle_search(message, _make_service_factory(service), logger)
@@ -106,7 +106,7 @@ async def test_handler_sends_no_results_message_on_empty_list():
 
 async def test_handler_reports_search_error_as_friendly_message():
     service = StubService(exc=SearchError("agent blew up"))
-    message = FakeMessage("!search US-CA")
+    message = FakeMessage("!rares US-CA")
     logger = NoopLogger()
 
     await handle_search(message, _make_service_factory(service), logger)
@@ -118,7 +118,7 @@ async def test_handler_reports_search_error_as_friendly_message():
 
 async def test_handler_reports_search_timeout_as_friendly_message():
     service = StubService(exc=SearchTimeout("no message"))
-    message = FakeMessage("!search US-CA")
+    message = FakeMessage("!rares US-CA")
     logger = NoopLogger()
 
     await handle_search(message, _make_service_factory(service), logger)
@@ -129,7 +129,7 @@ async def test_handler_reports_search_timeout_as_friendly_message():
 
 async def test_handler_catches_unknown_exception_and_replies_generically():
     service = StubService(exc=RuntimeError("kaboom"))
-    message = FakeMessage("!search US-CA")
+    message = FakeMessage("!rares US-CA")
     logger = NoopLogger()
 
     await handle_search(message, _make_service_factory(service), logger)
@@ -147,7 +147,7 @@ async def test_handler_constructs_fresh_service_per_call():
         calls["count"] += 1
         return service
 
-    message = FakeMessage("!search US-CA")
+    message = FakeMessage("!rares US-CA")
     logger = NoopLogger()
 
     await handle_search(message, factory, logger)
@@ -157,7 +157,7 @@ async def test_handler_constructs_fresh_service_per_call():
 
 async def test_handler_strips_whitespace_from_region():
     service = StubService(result=[])
-    message = FakeMessage("!search   US-CA   ")
+    message = FakeMessage("!rares   US-CA   ")
     logger = NoopLogger()
 
     await handle_search(message, _make_service_factory(service), logger)

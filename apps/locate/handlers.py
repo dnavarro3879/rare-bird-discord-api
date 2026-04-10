@@ -8,12 +8,14 @@ from apps.locate.embeds import build_locate_embed
 from apps.locate.services import LocateError, LocateService, LocateTimeout
 from apps.locate.views import RegionButtonsView
 from apps.search.services import SearchService
+from apps.targets.services import TargetsService
 
 
 async def handle_locate(
     message: discord.Message,
     make_service: Callable[[], LocateService],
     make_search_service: Callable[[], SearchService],
+    make_targets_service: Callable[[], TargetsService],
     logger: Any,
 ) -> None:
     city = message.content.removeprefix("!locate").strip()
@@ -45,6 +47,7 @@ async def handle_locate(
     view = RegionButtonsView(
         results=results,
         make_search_service=make_search_service,
+        make_targets_service=make_targets_service,
         logger=logger,
     )
     await message.channel.send(embed=embed, view=view)

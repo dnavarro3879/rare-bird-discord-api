@@ -2,10 +2,8 @@ import discord
 
 from apps.search.schemas import Species
 
-MAX_SIGHTINGS = 5
 
-
-def build_species_embed(species: Species) -> discord.Embed:
+def build_species_embed(species: Species, max_sightings: int = 5) -> discord.Embed:
     """Build a Discord embed card from a species dict."""
     common_name = species.get("commonName", "Unknown Species")
     sci_name = species.get("scientificName", "")
@@ -19,7 +17,7 @@ def build_species_embed(species: Species) -> discord.Embed:
         color=discord.Color.green(),
     )
 
-    for s in sightings[:MAX_SIGHTINGS]:
+    for s in sightings[:max_sightings]:
         location = s.get("locationName", "Unknown location")
         date_time = s.get("dateTime", "")
         checklist_url = s.get("checklistUrl", "")
@@ -38,7 +36,7 @@ def build_species_embed(species: Species) -> discord.Embed:
 
         embed.add_field(name=location, value=value, inline=False)
 
-    if len(sightings) > MAX_SIGHTINGS:
-        embed.set_footer(text=f"+{len(sightings) - MAX_SIGHTINGS} more sighting(s)")
+    if len(sightings) > max_sightings:
+        embed.set_footer(text=f"+{len(sightings) - max_sightings} more sighting(s)")
 
     return embed

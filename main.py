@@ -9,6 +9,9 @@ from apps.locate import register as register_locate
 from apps.search import AppDeps
 from apps.search import register as register_search
 from apps.search.services import SearchService
+from apps.targets import TargetsDeps
+from apps.targets import register as register_targets
+from apps.targets.services import TargetsService
 from core.anthropic_client import build_anthropic_client
 from core.config import load_config
 from core.logging import configure_logging
@@ -32,7 +35,20 @@ def main() -> None:
             logger=logger,
         )
 
+    def make_targets_service() -> TargetsService:
+        return TargetsService(
+            client=anthropic_client,
+            config=config,
+            sleeper=time.sleep,
+            logger=logger,
+        )
+
     search_deps = AppDeps(
+        config=config,
+        anthropic_client=anthropic_client,
+        logger=logger,
+    )
+    targets_deps = TargetsDeps(
         config=config,
         anthropic_client=anthropic_client,
         logger=logger,
@@ -42,8 +58,10 @@ def main() -> None:
         anthropic_client=anthropic_client,
         logger=logger,
         make_search_service=make_search_service,
+        make_targets_service=make_targets_service,
     )
     register_search(bot, search_deps)
+    register_targets(bot, targets_deps)
     register_locate(bot, locate_deps)
 
     bot.run(config.discord_token)

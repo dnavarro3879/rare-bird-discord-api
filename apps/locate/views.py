@@ -1,14 +1,18 @@
 import asyncio
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
 import discord
 
 from apps.locate.schemas import RegionResult
 from apps.search.embeds import build_species_embed
 from apps.search.services import SearchError, SearchService, SearchTimeout
+from apps.targets.region import is_county_region
+from apps.targets.services import TargetsError, TargetsService, TargetsTimeout
 
 _MAX_LABEL_LEN = 80
+
+ButtonKind = Literal["rares", "targets"]
 
 
 class RegionButtonsView(discord.ui.View):
@@ -16,20 +20,37 @@ class RegionButtonsView(discord.ui.View):
         self,
         results: list[RegionResult],
         make_search_service: Callable[[], SearchService],
+        make_targets_service: Callable[[], TargetsService],
         logger: Any,
         *,
         timeout: float = 600.0,
     ) -> None:
         super().__init__(timeout=timeout)
         for i, r in enumerate(results, start=1):
+            row = i - 1
             self.add_item(
                 _RegionButton(
+                    kind="rares",
                     index=i,
                     result=r,
                     make_search_service=make_search_service,
+                    make_targets_service=make_targets_service,
                     logger=logger,
+                    row=row,
                 )
             )
+            if is_county_region(r.get("regionCode", "")):
+                self.add_item(
+                    _RegionButton(
+                        kind="targets",
+                        index=i,
+                        result=r,
+                        make_search_service=make_search_service,
+                        make_targets_service=make_targets_service,
+                        logger=logger,
+                        row=row,
+                    )
+                )
 
 
 class _RegionButton(discord.ui.Button):
@@ -40,26 +61,43 @@ class _RegionButton(discord.ui.Button):
     def __init__(
         self,
         *,
+        kind: ButtonKind,
         index: int,
         result: RegionResult,
         make_search_service: Callable[[], SearchService],
+        make_targets_service: Callable[[], TargetsService],
         logger: Any,
+        row: int,
     ) -> None:
         region_code = result.get("regionCode", "")
         display_name = result.get("displayName") or region_code
-        label = f"{index}. {display_name}"[:_MAX_LABEL_LEN]
-        custom_id = f"locate:{region_code}:{index}"
+        label = f"{kind.title()}: {display_name}"[:_MAX_LABEL_LEN]
+        custom_id = f"locate:{kind}:{region_code}:{index}"
+        style = (
+            discord.ButtonStyle.primary
+            if kind == "rares"
+            else discord.ButtonStyle.success
+        )
         super().__init__(
             label=label,
             custom_id=custom_id,
-            style=discord.ButtonStyle.primary,
+            style=style,
+            row=row,
         )
+        self._kind: ButtonKind = kind
         self._region_code = region_code
         self._make_search_service = make_search_service
+        self._make_targets_service = make_targets_service
         self._logger = logger
 
     async def callback(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True)
+        if self._kind == "rares":
+            await self._run_rares(interaction)
+        else:
+            await self._run_targets(interaction)
+
+    async def _run_rares(self, interaction: discord.Interaction) -> None:
         service = self._make_search_service()
         loop = asyncio.get_running_loop()
         try:
@@ -84,3 +122,31 @@ class _RegionButton(discord.ui.Button):
             return
         for species in data:
             await interaction.followup.send(embed=build_species_embed(species))
+
+    async def _run_targets(self, interaction: discord.Interaction) -> None:
+        service = self._make_targets_service()
+        loop = asyncio.get_running_loop()
+        try:
+            data = await loop.run_in_executor(None, service.targets, self._region_code)
+        except TargetsError as e:
+            await interaction.followup.send(f"Agent error: {e}")
+            return
+        except TargetsTimeout:
+            await interaction.followup.send("Agent timed out. Try again shortly.")
+            return
+        except Exception:
+            self._logger.exception(
+                "locate-button targets failed for region={}", self._region_code
+            )
+            await interaction.followup.send("Something went wrong querying the agent.")
+            return
+
+        if not data:
+            await interaction.followup.send(
+                f"No life-list targets found in {self._region_code}."
+            )
+            return
+        for species in data:
+            await interaction.followup.send(
+                embed=build_species_embed(species, max_sightings=10)
+            )

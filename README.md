@@ -1,6 +1,6 @@
 # rare-bird-discord-api
 
-A Discord bot that surfaces recent rare bird sightings for a given region. Users post `!search US-CA` in a channel; the bot replies with embed cards for each rare species, including location, date/time, and links to the eBird checklist, Google Maps, and All About Birds.
+A Discord bot that surfaces recent rare bird sightings for a given region. Users post `!rares US-CA` in a channel; the bot replies with embed cards for each rare species, including location, date/time, and links to the eBird checklist, Google Maps, and All About Birds.
 
 The bot itself does not call eBird directly — all data fetching, parsing, and shaping is delegated to an [Anthropic Managed Agent](https://docs.anthropic.com/) that the bot communicates with via the `client.beta.sessions` API. The Discord layer is responsible only for routing messages, presenting results, and surfacing errors.
 
@@ -9,7 +9,7 @@ The bot itself does not call eBird directly — all data fetching, parsing, and 
 ```
 main.py                  composition root: load config → build bot → register apps → run
 core/                    cross-cutting infrastructure (config, logging, anthropic client factory)
-apps/search/             the !search feature, self-contained and registered into the bot
+apps/search/             the !rares feature, self-contained and registered into the bot
     services.py          business logic — managed-agent session lifecycle (sync, dependency-injected)
     handlers.py          Discord-facing layer; owns the run_in_executor boundary
     embeds.py            pure dict → discord.Embed
@@ -64,7 +64,7 @@ uv run python main.py
 Then, in a Discord channel where the bot has been invited and granted message access, post:
 
 ```
-!search US-CA
+!rares US-CA
 ```
 
 The bot will reply with `Searching for rare birds in **US-CA**...` and then post one embed per species. If the agent returns no sightings, you'll get a "no rare bird sightings found" message instead. If the agent errors out or times out (6-minute ceiling), you'll get a friendly error reply.
@@ -73,27 +73,44 @@ Region codes follow the eBird convention: country (`US`), state/subnational1 (`U
 
 ## Commands
 
-### `!search <region>`
+### `!rares <region>`
 
 Look up rare bird sightings in a known eBird region code. Example:
 
 ```
-!search US-TX-453
+!rares US-TX-453
 ```
 
 Returns one embed per species as described above.
 
+### `!targets <countyRegionCode>`
+
+Look up species seen in a county in the last 72 hours that are **not** on
+the configured eBird life list (life-list "targets"). County-level region
+codes only (e.g. `US-CO-013`); state- or country-level codes are rejected
+up front with a friendly error and no agent call is made. Example:
+
+```
+!targets US-CO-013
+```
+
+Returns one embed per unsighted species with up to ten most-recent
+checklists each. If the agent has no targets to report, the bot replies
+with a "no life-list targets found" message. The underlying eBird life-list
+fetch is handled by the managed agent, so `EBIRD_API_KEY` must be
+configured on the agent side — the bot does not read it.
+
 ### `!locate <city>`
 
-Resolve a free-form city name into up to three eBird region codes (the region containing the city plus up to two nearby regions), then click a numbered button to run `!search` against the region you want. Example:
+Resolve a free-form city name into up to three eBird region codes (the region containing the city plus up to two nearby regions), then click a button to run `!rares` or `!targets` against the region you want. Example:
 
 ```
 !locate Austin
 ```
 
-The bot replies with a single embed listing up to three candidates, each exposed as a numbered button. Clicking a button runs the same search flow that `!search` uses and posts the species embeds back in the same channel.
+The bot replies with a single embed listing up to three candidates. Each result gets a Rares button; county-level results also get a Targets button on the same row. Clicking a button runs the same flow that the typed command uses and posts the species embeds back in the same channel.
 
-`!locate` is implemented via `client.messages.create` with Anthropic's server-side `web_search` tool (capped at 3 web searches per request) because county-level FIPS codes are not reliably recallable from parametric knowledge and must be verified online. This makes `!locate` more expensive per call than `!search`; use it for discovery and `!search` directly when you already know the region code.
+`!locate` is implemented via `client.messages.create` with Anthropic's server-side `web_search` tool (capped at 3 web searches per request) because county-level FIPS codes are not reliably recallable from parametric knowledge and must be verified online. This makes `!locate` more expensive per call than `!rares`; use it for discovery and `!rares` directly when you already know the region code.
 
 The default model is `claude-sonnet-4-5`. To override, set the optional `CLAUDE_MODEL` environment variable in your `.env` file — this is the only new env var for `!locate` and it is not required.
 
